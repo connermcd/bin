@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Author: Conner McDaniel
+# https://github.com/connermcd/bin
+# MIT license
+
+set -e
+
+selection=$(xrectsel)
+ffmpeg -f x11grab -r 30 -s $(echo $selection | cut -f1 -d' ' ) -i :0.0$(echo $selection | cut -f2 -d' ' ) -vcodec libx264 -preset ultrafast -crf 0 -y screencast-select.mp4

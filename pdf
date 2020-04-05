@@ -1,0 +1,121 @@
+#!/bin/bash
+
+usage() {
+cat << EOF
+Help:
+
+   -h              - show this message
+   -o {output}     - specify a file or directory for the PDF output
+   -x              - open pdf when finished
+
+Examples:
+
+   pdf -o /path/to/output.pdf ~/path/to/input.doc
+   pdf -o ~/my_pdf_directory *.ppt
+   pdf input.rtf
+
+Note: Runs significantly faster when OpenOffice is running.
+EOF
+}
+
+if [[ $EUID -eq 0 ]]; then
+   echo "If you run this as root you'll be sorry..."
+   exit 1
+fi
+
+IFS=$(echo -en "\n\b")
+while getopts "ho:x?" opt; do
+  case $opt in
+    h)
+      usage
+      exit 1
+      ;;
+    x)
+      EXECUTE=1
+      ;;
+    o)
+      OUTPUT="$OPTARG"
+      ;;
+    ?)
+      usage
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND-1))
+
+for INPUT in "$@"; do
+
+DIR=`dirname "$INPUT"`
+INPUT_BASE=`basename "$INPUT"`
+pushd "$DIR" > /dev/null
+ABS_PATH="$PWD"
+popd > /dev/null
+INPUT="$ABS_PATH/$INPUT_BASE"
+
+if [[ "$OUTPUT" != "$ABS_PATH" && `dirname "$OUTPUT"` != "$ABS_PATH" ]]; then
+   DELETE=true
+fi
+
+FILETYPE=`echo "$INPUT_BASE" | awk -F . '{print tolower($NF)}'`
+if [[ $FILETYPE == "pdf" ]]; then
+   echo "$INPUT is already a PDF! Skipping..."
+   continue
+elif [[ -d "$INPUT" ]]; then
+   echo "$INPUT is a directory! Skipping..."
+   continue
+elif [[ ! -e "$INPUT" ]]; then
+   echo "$INPUT does not exist! Skipping..."
+   continue
+fi
+
+if [[ -n "$OUTPUT" && -d "$OUTPUT" ]]; then
+   INPUT_COPY="$OUTPUT/$INPUT_BASE"
+   if [[ $DELETE ]]; then
+      cp "$INPUT" "$INPUT_COPY"
+   fi
+   INPUT="$INPUT_COPY"
+   PDF="${INPUT%%.$FILETYPE}.pdf"
+elif [ -n "$OUTPUT" ]; then
+   INPUT_COPY="${OUTPUT%%.pdf}.$FILETYPE"
+   if [[ $DELETE ]]; then
+      cp "$INPUT" "$INPUT_COPY"
+   fi
+   INPUT="$INPUT_COPY"
+   PDF="$OUTPUT"
+else
+   PDF="${INPUT%%.$FILETYPE}.pdf"
+fi
+
+DIR=`dirname "$INPUT"`
+INPUT_BASE=`basename "$INPUT"`
+pushd "$DIR" > /dev/null
+ABS_PATH="$PWD"
+popd > /dev/null
+INPUT="$ABS_PATH/$INPUT_BASE"
+
+if [[ -e "$PDF" ]]; then
+   read -p "$PDF already exists. Overwrite? (y/Y/n/N)"
+   if [[ "$REPLY" != "y" && "$REPLY" != "Y" ]]; then
+      if [[ -e "$INPUT_COPY" && $DELETE ]]; then
+         rm "$INPUT_COPY"
+      fi
+      continue
+   else
+      rm "$PDF"
+   fi
+fi
+
+/usr/bin/soffice --invisible "macro:///Standard.Module1.ConvertToPDF($INPUT)"
+if [[ -e "$INPUT_COPY" && $DELETE ]]; then
+   rm "$INPUT_COPY"
+fi
+if [[ -e "$PDF" ]]; then
+   echo "$INPUT successfully converted!"
+   if [ -n "$EXECUTE" ]; then
+      open "$PDF"
+   fi
+else
+   echo "There was a problem converting your file: $INPUT"
+fi
+done

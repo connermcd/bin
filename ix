@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Author: Conner McDaniel
+# https://github.com/connermcd/bin
+# MIT license
+
+curl -s -n -F 'f:1=<-' http://ix.io

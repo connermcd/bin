@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Author: Conner McDaniel
+# https://github.com/connermcd/bin
+# MIT license
+
+set -e
+
+cd $HOME/Documents/Notes/
+
+[[ -f tags ]] && rm tags
+grep --exclude="*.bib" -r "tags = {" * | while read line; do
+    file=$(echo "$line" | cut -d: -f1)
+    unparsed_tags=$(echo "$line" | cut -d: -f2)
+    tags=$(echo $unparsed_tags | sed -e "s/tags = {//g" -e "s/,\|}//g")
+    for tag in $tags; do
+        echo "$tag	$file	/^$unparsed_tags$/;" >> tags
+    done
+done
+
+[[ -f global.bib ]] && rm global.bib
+pcregrep -r -h -M -I --exclude-dir=img --exclude=".*pdf" "^@(\n|.)*~~~" . > global.bib

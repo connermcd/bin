@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Author: Conner McDaniel
+# https://github.com/connermcd/bin
+# MIT license
+
+set -e
+
+pdftotext "$1" - | grep -oP "\b(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![\"&\'<>])\S)+)\b" | head -n 1
